@@ -1,0 +1,283 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mood Based Music System</title>
+    <style>
+        body {
+            margin: 0;
+            height: 100vh;
+            background-color: black;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+        }
+        .center-box {
+            width: 70%;
+            height: 70%;
+            background-size: cover;
+            background-position: center;
+            position: relative;
+            padding: 20px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.7);
+            background-color: #121212; /* Dark background like Spotify */
+            border-radius: 10px; /* Slightly rounded corners */
+        }
+        .song-details {
+            color: white;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .song-details h2 {
+            margin: 0;
+            font-size: 24px;
+            color: #1DB954; /* Spotify green for song name */
+        }
+        .song-details p {
+            margin: 5px 0;
+            font-size: 16px;
+            color: white;
+        }
+        .controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .controls button {
+            width: 50px;
+            height: 50px;
+            border: none;
+            border-radius: 50%; /* Perfect circle */
+            cursor: pointer;
+            color: white;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.3s, transform 0.3s; /* Added transition for hover effect */
+        }
+        #prev-song, #next-song {
+            background-color: #1DB954; /* Spotify green for prev and next buttons */
+            border: 3px solid red; /* Black border */
+            box-sizing: border-box; /* Ensure border is included in total size */
+            width: 46px; /* Adjusted width */
+            height: 46px; /* Adjusted height */
+        }
+        #play-pause-song {
+            background-color: black; /* Black for play/pause button */
+            width: 55px; /* Slightly increased width */
+            height: 55px; /* Slightly increased height */
+        }
+        #mute-button {
+            background-color: black; /* Black for mute/unmute button */
+        }
+        .controls button:hover {
+            background-color: #333; /* Darker on hover */
+            transform: scale(1.1); /* Slightly larger on hover */
+        }
+        .volume-control {
+            width: 120px; /* Increased width of volume bar */
+        }
+        .mood-selector {
+            padding: 10px;
+            color: white;
+            text-align: center;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+        }
+        input[type="radio"] {
+            cursor: pointer;
+            accent-color: #1DB954; /* Change color of the radio button */
+            display: none; /* Hide the default radio button */
+        }
+        label {
+            cursor: pointer;
+            padding: 5px 15px;
+            border: 2px solid transparent;
+            border-radius: 5px;
+            transition: border 0.3s, background 0.3s, transform 0.3s;
+        }
+        label:hover {
+            background: rgba(29, 185, 84, 0.2); /* Light green background on hover */
+            transform: scale(1.05); /* Slightly enlarge on hover */
+        }
+        label.selected {
+            border: 2px solid #1DB954; /* Highlight border when selected */
+            background: rgba(29, 185, 84, 0.5); /* Light green background */
+            box-shadow: 0 0 10px #1DB954, 0 0 20px #1DB954; /* Glowing effect */
+        }
+        h1 {
+            color: green;
+            margin: 0 0 15px;
+            text-align: center;
+            font-family: cursive;
+        }
+        .time-display {
+            color: white;
+            display: flex; /* Use flexbox to align items */
+            justify-content: space-between; /* Space between left and right */
+            width: 500px; /* Set to match seek bar */
+            margin-top: 5px; /* Space above the time display */
+        }
+        #seek-bar {
+            width: 500px; /* Set fixed width for the seek bar */
+        }
+    </style>
+</head>
+<body>
+
+    <h1><u>Mood Based Music System</u></h1>
+
+    <div class="mood-selector">
+        <form method="GET" id="mood-form">
+            <span style="color: white;">Select the Mood:</span><br><br>
+            {% for mood in moods %}
+                <input type="radio" name="mood" id="mood-{{ forloop.counter }}" value="{{ mood }}" {% if mood == selected_mood %}checked{% endif %} onchange="updateMood(this)">
+                <label for="mood-{{ forloop.counter }}">{{ mood }}</label>
+            {% endfor %}
+        </form>
+    </div>
+
+    {% if songs %}
+    <div class="center-box" id="main-box" style="background-image: url('{% static songs.0.path %}'); background-size: 30% 40%; background-repeat: no-repeat;">
+        <div class="song-details">
+            <h2 id="song-name">{{ songs.0.Name }}</h2>
+            <p id="song-singer">Singer: {{ songs.0.Singer }}</p>
+            <p id="song-year">Year: {{ songs.0.Year }}</p>
+            <p id="song-film">Film: {{ songs.0.Film }}</p>
+        </div>
+
+        <div id="seek" style="padding-top: 27%; padding-left: 27%;">
+            <input type="range" id="seek-bar" value="0" step="0.1" min="0">
+            <div class="time-display">
+                <span id="current-time">0:00</span>
+                <span id="total-time">0:00</span>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button id="prev-song">⏮</button>
+            <button id="play-pause-song">▶</button>
+            <button id="next-song">⏭</button>
+            <input type="range" id="volume-control" class="volume-control" min="0" max="1" step="0.1" value="1">
+            <button id="mute-button">🔇</button>
+        </div>
+        
+    </div>
+    {% endif %}
+
+    <audio id="audio-player" src="{% static songs.0.Link %}"></audio>
+
+    <script>
+        const songs = {{ songs|safe }};
+let currentSongIndex = 0;
+const audioPlayer = document.getElementById('audio-player');
+const volumeControl = document.getElementById('volume-control');
+const seekBar = document.getElementById('seek-bar');
+const muteButton = document.getElementById('mute-button');
+const playPauseButton = document.getElementById('play-pause-song');
+const currentTimeDisplay = document.getElementById('current-time');
+const totalTimeDisplay = document.getElementById('total-time');
+
+// Play/Pause button event
+playPauseButton.addEventListener('click', () => {
+    if (audioPlayer.paused) {
+        audioPlayer.play();
+        playPauseButton.textContent = '⏸';
+    } else {
+        audioPlayer.pause();
+        playPauseButton.textContent = '▶';
+    }
+});
+
+// Update song info
+function updateSong() {
+    const song = songs[currentSongIndex];
+    audioPlayer.src = "/static/" + song.Link;
+    audioPlayer.play();
+    playPauseButton.textContent = '⏸'; // Change button to pause icon
+
+    // Update background image of the center box
+    document.getElementById('main-box').style.backgroundImage = `url('/static/${song.path}')`;
+
+    // Update song details
+    document.getElementById('song-name').textContent = song.Name;
+    document.getElementById('song-singer').textContent = 'Singer: ' + song.Singer;
+    document.getElementById('song-year').textContent = 'Year: ' + song.Year;
+    document.getElementById('song-film').textContent = 'Film: ' + song.Film;
+
+    // Reset time displays
+    currentTimeDisplay.textContent = '0:00';
+    totalTimeDisplay.textContent = formatTime(audioPlayer.duration);
+}
+
+// Handle volume control
+volumeControl.addEventListener('input', () => {
+    audioPlayer.volume = volumeControl.value;
+});
+
+// Handle mute button
+muteButton.addEventListener('click', () => {
+    if (audioPlayer.muted) {
+        audioPlayer.muted = false;
+        muteButton.textContent = '🔇';
+    } else {
+        audioPlayer.muted = true;
+        muteButton.textContent = '🔊';
+    }
+});
+
+// Handle seek bar
+audioPlayer.addEventListener('timeupdate', () => {
+    seekBar.value = audioPlayer.currentTime;
+    currentTimeDisplay.textContent = formatTime(audioPlayer.currentTime);
+});
+
+audioPlayer.addEventListener('loadedmetadata', () => {
+    seekBar.max = audioPlayer.duration;
+    totalTimeDisplay.textContent = formatTime(audioPlayer.duration);
+});
+
+// Listen for the end of the current song and play the next one automatically
+audioPlayer.addEventListener('ended', () => {
+    currentSongIndex = (currentSongIndex + 1) % songs.length;
+    updateSong();
+});
+
+// Format time function
+function formatTime(time) {
+    const minutes = Math.floor(time / 60);
+    const seconds = Math.floor(time % 60).toString().padStart(2, '0');
+    return `${minutes}:${seconds}`;
+}
+
+// Next song
+document.getElementById('next-song').addEventListener('click', () => {
+    currentSongIndex = (currentSongIndex + 1) % songs.length;
+    updateSong();
+});
+
+// Previous song
+document.getElementById('prev-song').addEventListener('click', () => {
+    currentSongIndex = (currentSongIndex - 1 + songs.length) % songs.length;
+    updateSong();
+});
+
+// Update mood when a new one is selected
+function updateMood(moodRadio) {
+    document.getElementById('mood-form').submit();
+}
+
+    </script>
+
+</body>
+</html>
